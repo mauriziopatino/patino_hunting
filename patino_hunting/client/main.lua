@@ -63,9 +63,19 @@ Citizen.CreateThread(function()
 					end
 				else
 					if IsControlJustPressed(0, 51) then
-						isHunting = false
+						for i=1, #animals, 1 do
+							RemoveBlip(animals[i].blip)
+							DeletePed(animals[i].id)
+						end
+						
 						Notification(Locales[Config.Language]['player_stop_hunting'])
 						TriggerServerEvent('patino_hunting:removeWeapon')
+						isHunting = false
+
+						if not isHunting then
+							animals = {}
+						end
+						
 					end
 				end
 			else
@@ -156,6 +166,7 @@ function DrawText3D(x,y,z, text)
 end
 
 function CreateAnimals()
+	print('asdadasd')
 
 	for k,v in ipairs(Config.Animals) do
 		for key,value in ipairs(Config.AnimalPositions) do
@@ -199,28 +210,28 @@ end
 
 function StartHunting()
 	isHunting = true
-	print('hunting first')
+	-- print('hunting first')
 	CreateAnimals()
-	CreateAnimalBlip()
+	-- CreateAnimalBlip()
 	if isHunting then
 		Citizen.CreateThread(function()
 			while isHunting do
 			   local wait = 500
-			   	print('hunting')
+			   	-- print('hunting')
 			   	for k,v in ipairs(animals) do
 					local health = GetEntityHealth(v.id)
 					if health <= 0 then
 						RemoveBlip(v.blip)
 						table.remove(animals, k)
 					else
-						print('vivo')
+						-- print('vivo')
 					end
 				end
 
-				if next(animals) == nil then
-					CreateAnimals()
-					CreateAnimalBlip()
-				end
+				-- if next(animals) == nil then
+				-- 	CreateAnimals()
+				-- 	CreateAnimalBlip()
+				-- end
 		
 		
 			   Citizen.Wait(wait)
@@ -228,28 +239,6 @@ function StartHunting()
 		end)
 	end
 
-end
-
-function CreateAnimalBlip()
-	Citizen.CreateThread(function()
-		while isHunting do
-		   	local wait = 500
-
-			animalBlip = AddBlipForEntity(animal)
-			SetBlipSprite (animalBlip, Config.BlipAnimalsSettings.Sprite)
-			SetBlipDisplay(animalBlip, Config.BlipAnimalsSettings.Display)
-			SetBlipScale  (animalBlip, Config.BlipAnimalsSettings.Scale)
-			SetBlipColour (animalBlip, Config.BlipAnimalsSettings.Colour)
-			SetBlipAsShortRange(animalBlip, true)
-			BeginTextCommandSetBlipName('STRING')
-			AddTextComponentSubstringPlayerName(Locales[Config.Language]['animal_map_blip'])
-			EndTextCommandSetBlipName(animalBlip)
-
-	
-	
-		   	Citizen.Wait(wait)
-		end
-	end)
 end
 
 RegisterCommand('table', function()
