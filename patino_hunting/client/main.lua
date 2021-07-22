@@ -232,7 +232,7 @@ end
 
 function CreateAnimalBlip()
 	Citizen.CreateThread(function()
-		while true do
+		while isHunting do
 		   	local wait = 500
 
 			animalBlip = AddBlipForEntity(animal)
