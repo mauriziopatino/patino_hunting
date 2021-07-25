@@ -46,12 +46,12 @@ Citizen.CreateThread(function()
 				if Config.Text.Type == 'default' then
 					DrawText3D(v.x, v.y, v.z, Locales[Config.Language]['press_to_start_hunting'])
 				elseif Config.Text.Type == 'codesign' then
-					inZone  = true
+					inZone = true
 				end
 				if not isHunting then
 					if IsControlJustPressed(0, 51) then
-						ESX.TriggerServerCallback('patino_hunting:canCarry', function(canCarry)
-							if canCarry then 
+						ESX.TriggerServerCallback('patino_hunting:getWeapons', function(canCarryWeapons)
+							if canCarryWeapons then 
 
 								StartHunting()
 								Notification(Locales[Config.Language]['player_started_hunting'])
@@ -166,7 +166,6 @@ function DrawText3D(x,y,z, text)
 end
 
 function CreateAnimals()
-	print('asdadasd')
 
 	for k,v in ipairs(Config.Animals) do
 		for key,value in ipairs(Config.AnimalPositions) do
@@ -177,8 +176,8 @@ function CreateAnimals()
 				Citizen.Wait(1)
 			end
 
-			local x = value.x + math.random(-Config.Radius, Config.Radius)
-			local y = value.y + math.random(-Config.Radius, Config.Radius)
+			local x = value.x + math.random(-Config.AnimalRadiusPositions, Config.AnimalRadiusPositions)
+			local y = value.y + math.random(-Config.AnimalRadiusPositions, Config.AnimalRadiusPositions)
 
 			local animal = CreatePed(5, v.AnimalHash, x, y, value.z-0.95, value.h, false, true)
 			
@@ -202,7 +201,7 @@ function CreateAnimals()
 
 
 			-- Insert in table
-			table.insert(animals, {id = animal, blip = animalBlip , x = value.x, y = value.y, z = value.z-0.95, h = value.h} )
+			table.insert(animals, {id = animal, blip = animalBlip , x = x, y = y, z = value.z-0.95, h = value.h} )
 		end
 
 	end
@@ -212,35 +211,100 @@ function StartHunting()
 	isHunting = true
 	-- print('hunting first')
 	CreateAnimals()
-	-- CreateAnimalBlip()
 	if isHunting then
 		Citizen.CreateThread(function()
+			local alreadyEnteredZone = false
 			while isHunting do
-			   local wait = 500
-			   	-- print('hunting')
+				local inZone = false
+				local playerPed = PlayerPedId()
+				local playerCoords = GetEntityCoords(playerPed)
+			   	local wait = 500
+
 			   	for k,v in ipairs(animals) do
+					
 					local health = GetEntityHealth(v.id)
 					if health <= 0 then
-						RemoveBlip(v.blip)
-						table.remove(animals, k)
+						
+						local lastAnimalCoords = GetEntityCoords(v.id)
+						local dist = #(playerCoords - vector3(lastAnimalCoords.x, lastAnimalCoords.y, lastAnimalCoords.z))
+
+						if dist <= 3 then
+							wait = 5
+							-- print(v.id .. " cerca")
+							if Config.Text.Type == 'default' then
+								DrawText3D(v.x, v.y, v.z, Locales[Config.Language]['press_to_loot'])
+							elseif Config.Text.Type == 'codesign' then
+								inZone = true
+							end
+
+							if IsControlJustPressed(0, 51) then
+								if GetSelectedPedWeapon(PlayerPedId()) == GetHashKey(Config.WeaponToLoot) then
+									
+									LootAnimal(playerPed)
+									
+									ESX.TriggerServerCallback('patino_hunting:getItemsAfterLoot', function(canCarryItems) 
+										if canCarryItems then
+											-- print(v.id .. " looted")
+											RemoveBlip(v.blip)
+											table.remove(animals, k)
+											DeletePed(v.id)
+										else
+											Notification(Locales[Config.Locales]'no_inventory_space')
+										end
+									end)
+
+								else
+									Notification(Locales[Config.Language]['no_knife'])
+								end
+							end
+						end
 					else
-						-- print('vivo')
+						wait = 1000
 					end
 				end
 
 				-- if next(animals) == nil then
 				-- 	CreateAnimals()
-				-- 	CreateAnimalBlip()
 				-- end
+
+				if Config.Text.Type == 'codesign' then
+					if inZone and not alreadyEnteredZone then
+						alreadyEnteredZone = true
+						TriggerEvent('cd_drawtextui:ShowUI', 'show', Locales[Config.Language]['press_to_loot'])
+					end
+		
+					if not inZone and alreadyEnteredZone then
+						alreadyEnteredZone = false
+						TriggerEvent('cd_drawtextui:HideUI')
+					end
+				end
 		
 		
 			   Citizen.Wait(wait)
 			end
 		end)
 	end
+end
+
+function LootAnimal(ped)
+	RequestAnimDict(Config.Animation.Dictionary)
+	while (not HasAnimDictLoaded(Config.Animation.Dictionary)) do 
+		Citizen.Wait(0) 
+	end
+	TaskPlayAnim(ped, Config.Animation.Dictionary ,Config.Animation.Name ,1.0, -1.0, -1, 1, 0, false, false, false )
+
+	RequestAnimDict(Config.Animation.Dictionary2)
+	while (not HasAnimDictLoaded(Config.Animation.Dictionary2)) do 
+		Citizen.Wait(0) 
+	end
+	TaskPlayAnim(ped, Config.Animation.Dictionary2 ,Config.Animation.Name2 ,1.0, -1.0, -1, 1, 0, false, false, false )
+	
+	Wait(Config.Animation.Duration * 1000)
+	ClearPedTasksImmediately(ped)
 
 end
 
+-- DEBUG 
 RegisterCommand('table', function()
 	TriggerEvent('table', animals)
 

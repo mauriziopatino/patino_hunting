@@ -4,7 +4,7 @@ if not Config.UsingESXLegacy then
 	TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 end
 
-ESX.RegisterServerCallback('patino_hunting:canCarry', function(source, cb)
+ESX.RegisterServerCallback('patino_hunting:getWeapons', function(source, cb)
 	local xPlayer = ESX.GetPlayerFromId(source)
 
 	if Config.WeaponAsItem then
@@ -42,6 +42,27 @@ AddEventHandler('patino_hunting:removeWeapon', function()
 		else
 			Notification(Locales[Config.Language]['no_weapon_to_return'])
 		end
+	end
+
+end)
+
+ESX.RegisterServerCallback('patino_hunting:getItemsAfterLoot', function(source, cb)
+	local xPlayer = ESX.GetPlayerFromId(source)
+	local skinRand = math.random(Config.SkinItem.From, Config.SkinItem.To)
+	local meatRand = math.random(Config.MeatItem.From, Config.MeatItem.To)
+
+	if xPlayer.canCarryItem(Config.SkinItem.Name, skinRand) then
+		if xPlayer.canCarryItem(Config.MeatItem.Name, meatRand) then
+			
+			xPlayer.addInventoryItem(Config.SkinItem.Name, skinRand)
+			xPlayer.addInventoryItem(Config.MeatItem.Name, meatRand)
+			cb(true)
+
+		else
+			cb(false)
+		end
+	else
+		cb(false)
 	end
 
 end)
