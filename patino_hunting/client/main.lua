@@ -316,8 +316,3 @@ function LootAnimal(ped)
 
 end
 
--- DEBUG 
-RegisterCommand('table', function()
-	TriggerEvent('table', animals)
-
-end)
