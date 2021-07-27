@@ -18,7 +18,6 @@ end
 ---- Don't Touch ----
 local isHunting = false
 local animals = {}
-
 ---------------------
 
 -- Creating the NPC to start job
@@ -53,8 +52,8 @@ Citizen.CreateThread(function()
 						ESX.TriggerServerCallback('patino_hunting:getWeapons', function(canCarryWeapons)
 							if canCarryWeapons then 
 
-								StartHunting()
 								Notification(Locales[Config.Language]['player_started_hunting'])
+								StartHunting()
 								
 							else
 								Notification(Locales[Config.Language]['no_inventory_space'])
@@ -168,40 +167,52 @@ end
 function CreateAnimals()
 
 	for k,v in ipairs(Config.Animals) do
+
 		for key,value in ipairs(Config.AnimalPositions) do
+			local randAnimals = math.random(Config.MaxMinAnimals.From,Config.MaxMinAnimals.To)
+			for i=1, randAnimals, 1 do
 
-			-- Requesting the animal model to spawn
-			RequestModel(GetHashKey(v.AnimalModel))
-			while (not HasModelLoaded(GetHashKey(v.AnimalModel))) do
-				Citizen.Wait(1)
+				-- Requesting the animal model to spawn
+				RequestModel(GetHashKey(v.AnimalModel))
+				while (not HasModelLoaded(GetHashKey(v.AnimalModel))) do
+					Citizen.Wait(1)
+				end
+
+				local x = value.x + math.random(-Config.AnimalRadiusPositions, Config.AnimalRadiusPositions)
+				local y = value.y + math.random(-Config.AnimalRadiusPositions, Config.AnimalRadiusPositions)
+
+				Z = value.z+999.0
+				isGround, z = GetGroundZFor_3dCoord(x+.0,y+.0,Z,1) -- code by
+
+				if isGround then
+
+					Wait(math.random(Config.WaitSpawning.From, Config.WaitSpawning.To))
+
+					local animal = CreatePed(5, v.AnimalHash, x, y, z, value.h, false, true)
+
+					-- Set the animals
+					FreezeEntityPosition(animal, false)
+    				SetEntityInvincible(animal, false)
+    				SetBlockingOfNonTemporaryEvents(animal, false)
+					TaskWanderStandard(animal, 8.0, 8)
+
+					-- Create Blips
+					animalBlip = AddBlipForEntity(animal)
+
+					SetBlipSprite (animalBlip, Config.BlipAnimalsSettings.Sprite)
+					SetBlipDisplay(animalBlip, Config.BlipAnimalsSettings.Display)
+					SetBlipScale  (animalBlip, Config.BlipAnimalsSettings.Scale)
+					SetBlipColour (animalBlip, Config.BlipAnimalsSettings.Colour)
+					SetBlipAsShortRange(animalBlip, true)
+					BeginTextCommandSetBlipName('STRING')
+					AddTextComponentSubstringPlayerName(Locales[Config.Language]['animal_map_blip'])
+					EndTextCommandSetBlipName(animalBlip)
+
+
+					-- Insert in table
+					table.insert(animals, {id = animal, blip = animalBlip , x = x, y = y, z = z, h = value.h} )
+				end
 			end
-
-			local x = value.x + math.random(-Config.AnimalRadiusPositions, Config.AnimalRadiusPositions)
-			local y = value.y + math.random(-Config.AnimalRadiusPositions, Config.AnimalRadiusPositions)
-
-			local animal = CreatePed(5, v.AnimalHash, x, y, value.z-0.95, value.h, false, true)
-			
-			-- Set the animals
-			FreezeEntityPosition(animal, false)
-    		SetEntityInvincible(animal, false)
-    		SetBlockingOfNonTemporaryEvents(animal, false)
-			TaskWanderStandard(animal, 8.0, 8)
-
-			-- Create Blips
-			animalBlip = AddBlipForEntity(animal)
-
-			SetBlipSprite (animalBlip, Config.BlipAnimalsSettings.Sprite)
-			SetBlipDisplay(animalBlip, Config.BlipAnimalsSettings.Display)
-			SetBlipScale  (animalBlip, Config.BlipAnimalsSettings.Scale)
-			SetBlipColour (animalBlip, Config.BlipAnimalsSettings.Colour)
-			SetBlipAsShortRange(animalBlip, true)
-			BeginTextCommandSetBlipName('STRING')
-			AddTextComponentSubstringPlayerName(Locales[Config.Language]['animal_map_blip'])
-			EndTextCommandSetBlipName(animalBlip)
-
-
-			-- Insert in table
-			table.insert(animals, {id = animal, blip = animalBlip , x = x, y = y, z = value.z-0.95, h = value.h} )
 		end
 
 	end
@@ -224,6 +235,7 @@ function StartHunting()
 					
 					local health = GetEntityHealth(v.id)
 					if health <= 0 then
+						SetBlipColour(v.blip, 1)
 						
 						local lastAnimalCoords = GetEntityCoords(v.id)
 						local dist = #(playerCoords - vector3(lastAnimalCoords.x, lastAnimalCoords.y, lastAnimalCoords.z))
@@ -238,7 +250,7 @@ function StartHunting()
 							end
 
 							if IsControlJustPressed(0, 51) then
-								if GetSelectedPedWeapon(PlayerPedId()) == GetHashKey(Config.WeaponToLoot) then
+								if GetSelectedPedWeapon(playerPed) == GetHashKey(Config.WeaponToLoot) then
 									
 									LootAnimal(playerPed)
 									
@@ -246,10 +258,10 @@ function StartHunting()
 										if canCarryItems then
 											-- print(v.id .. " looted")
 											RemoveBlip(v.blip)
-											table.remove(animals, k)
 											DeletePed(v.id)
+											table.remove(animals, k)
 										else
-											Notification(Locales[Config.Locales]'no_inventory_space')
+											Notification(Locales[Config.Locales]['no_inventory_space'])
 										end
 									end)
 
@@ -258,14 +270,14 @@ function StartHunting()
 								end
 							end
 						end
-					else
-						wait = 1000
 					end
 				end
 
-				-- if next(animals) == nil then
-				-- 	CreateAnimals()
-				-- end
+				if Config.SpawnAnimalsInfinite then
+					if next(animals) == nil then
+						CreateAnimals()
+					end
+				end
 
 				if Config.Text.Type == 'codesign' then
 					if inZone and not alreadyEnteredZone then
